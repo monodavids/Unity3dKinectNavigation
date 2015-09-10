@@ -89,6 +89,7 @@ public class CursorController : MonoBehaviour  {
 	float xPrevious=0f, yPrevious=0f;
 	float moveThreshold = 0.001f;
 	int count = 0;
+	public bool smoothMovement = false;
 	void Update(){
 		boundingBox.transform.position = hips.position + virtualCenter;
 		if (kinectManager.IsUserDetected ()) {
@@ -103,7 +104,8 @@ public class CursorController : MonoBehaviour  {
 						Vector2 bottomLeft = new Vector2 (boundingBox.transform.position.x - boundingBox.bounds.extents.x, boundingBox.transform.position.y - boundingBox.bounds.extents.y);
 						Vector2 topRight = new Vector2 (boundingBox.transform.position.x + boundingBox.bounds.extents.x, boundingBox.transform.position.y + boundingBox.bounds.extents.y);
 						Vector2 handClamped = new Vector2 (Mathf.Clamp (rightHand.transform.position.x, bottomLeft.x, topRight.x), Mathf.Clamp (rightHand.transform.position.y, bottomLeft.y, topRight.y));
-		
+						
+			//print (rightHand);
 						bottomLeftCube.transform.position = new Vector3 (bottomLeft.x, bottomLeft.y, boundingBox.transform.position.z);
 						topRightCube.transform.position = new Vector3 (topRight.x, topRight.y, boundingBox.transform.position.z);
 						handClampedCube.transform.position = new Vector3 (handClamped.x, handClamped.y, boundingBox.transform.position.z);
@@ -127,10 +129,17 @@ public class CursorController : MonoBehaviour  {
 						POINT current = new POINT ();
 						GetCursorPos (out current);
 					//	print ("Current Position:"+current.X+","+current.Y);
-						//	xScaled = Mathf.Lerp(current.X,xScaled,Time.deltaTime*rate);
+			if(smoothMovement){
+						xScaled = Mathf.Lerp(current.X,xScaled,Time.deltaTime*rate);
 						yScaled = Mathf.Lerp (current.Y, yScaled, Time.deltaTime * rate);
-						//MouseControl.MouseMove (new Vector3 (totalScreenWidth*0.5f,totalScreenHeight*0.5f,0), new GUIText ());
-						SetCursorPos ((int)xScaled, (int)yScaled);
+			}
+			/*else{
+			xScaled = current.X;
+			yScaled = current.Y;
+			}*/
+			//MouseControl.MouseMove (new Vector3 (totalScreenWidth*0.5f,totalScreenHeight*0.5f,0), new GUIText ());
+			SetCursorPos ((int)xScaled, (int)yScaled);
+			print (xScaled.ToString()+","+yScaled.ToString());
 						xPrevious = handClamped.x;
 						yPrevious = handClamped.y;
 						Vector2 pos;
