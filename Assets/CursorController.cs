@@ -3,6 +3,7 @@ using System.Collections;
 using System.Runtime.InteropServices;
 using Windows.Kinect;
 
+//Struct needed to translate System screen cursor position
 public struct POINT
 {
 	public int X;
@@ -15,144 +16,152 @@ public struct POINT
 	}
 }
 
-
+//Cursor controller initiates and controls a kinect hand controller which overrides the system cursor
 public class CursorController : MonoBehaviour  {
+	//The menu controller, which subscribes to cursor enter/exit events
 	public HandControlDemoMenu menu;
+	//Handle on the kinect manager in the scene
 	public KinectManager kinectManager;
+	//The Avatar controller whose hand transforms we subscribe to to control the cursor
 	public AvatarController avatar;
+	//Various transforms of the kinect controlled avatar we need
 	public Transform rightHand, leftHand, rightShoulder, leftShoulder, hips;
+	//Various necessary float variables
 	float distanceBetweenShoulders;
 	float virtualHeight, virtualWidth;
 	float totalScreenWidth, totalScreenHeight;
-	float actualScreenWidth, actualScreenHeight;
+	//The virtaul center of our bounding box
 	Vector3 virtualCenter;
+	//The bounding box, created only for visualisation
+	//It defines the extent of the hand space which translates to screen space
 	BoxCollider boundingBox;
+	//The image of the cursor
 	public Image handCursor;
+	//The Canvas where the UI is drawn
 	public Canvas myCanvas;
+	//The demo button
 	public Button guestButton;
 
-
+	//First function called automatically by Unity to initialise everything
 	void Awake(){
-		//Screen.showCursor = false;
+		//We first calculate the distance between the two shoulder transforms
 		distanceBetweenShoulders = rightShoulder.position.x - leftShoulder.position.x;
+		//Virtual width is half that
 		virtualWidth = 2 * distanceBetweenShoulders;
+		//Virtual height is the distance between the shoulder and the hips in Y
 		virtualHeight = rightShoulder.position.y-hips.position.y;
+		//The virtual centre is now found
 		virtualCenter = new Vector3(virtualWidth * 0.5f,virtualHeight,0f);
-
+		//get working resolution
 		totalScreenWidth = Screen.width;
 		totalScreenHeight = Screen.height;
+		//debug
 		print ("RESOLUTION: "+totalScreenWidth + " " + totalScreenHeight);
-		//Debug.Break ();
 		print ("Current "+Screen.currentResolution.width+" "+Screen.currentResolution.height);
-		actualScreenWidth = Screen.currentResolution.width;
-		actualScreenHeight = Screen.currentResolution.height;
+		//Instantiate the bounding (working area) box
 		GameObject g = new GameObject ();
 		g.name = "BoundingBox";
 		boundingBox = g.AddComponent<BoxCollider> ();
 		boundingBox.size = new Vector3 (virtualWidth, virtualHeight, virtualHeight);
+		//Create primitives defining the upper most and lower most extents of the cursor area
 		bottomLeftCube = GameObject.CreatePrimitive (PrimitiveType.Cube);
 		topRightCube = GameObject.CreatePrimitive (PrimitiveType.Cube);
 		handClampedCube = GameObject.CreatePrimitive (PrimitiveType.Cube);
+		//Disable the renderer components of the primitives
 		bottomLeftCube.renderer.enabled = topRightCube.renderer.enabled = handClampedCube.renderer.enabled = false;
 		bottomLeftCube.transform.localScale = topRightCube.transform.localScale = handClampedCube.transform.localScale = Vector3.one * 0.05f;
-		//handCursor.color = new Color(handCursor.color.r, handCursor.color.g, handCursor.color.b, 1f);
-		//handCursor.CrossFadeAlpha (1f, 1f, true);
+		//Start idle animation of the cursor image
 		LeanTween.rotateAroundLocal(handCursor.gameObject,Vector3.forward, -15f, 1f).setEase (LeanTweenType.easeInOutSine);
-		//enabled = false;
 		LeanTween.rotateZ (handCursor.gameObject, -15f, 1f).setLoopPingPong ().setDelay (1f).setEase(LeanTweenType.easeInOutSine);
+		//Tween the image alpha into view
 		LeanTween.value (gameObject, UpdateCanvasGroupAlpha, 0f, 1f, 1f);
+		//Disable component
 		enabled = false;
+		//debug
 		print ("Set up correctly");
 	}
+	//Bool hasWaved set to false to begin with
 	bool hasWaved = false;
+	//function called when wave gesture recognised
 	public void WaveRecognised(){
+		//Once it hasn't already occured
 		if (!hasWaved) {
+			//Cancel the idle animation
 						LeanTween.cancel (handCursor.gameObject);
-					//	genderUI.TransitionIn ();
+			//Enable the menu button
 			menu.buttonEnabled = true;
+			//enable the component
 						enabled = true;
+			//Set the initial bool to true
 			hasWaved = true;
 				}
 	}
-//	public GenderSelectionController genderUI;
-
+	//This function is used by leantween to tween the alpha value of the cursor
 	void UpdateCanvasGroupAlpha(float value){
 		handCursor.color = new Color (handCursor.color.r, handCursor.color.g, handCursor.color.b, value);
 	}
+	//These game objects are used to define the working area of the avatar
 	GameObject bottomLeftCube, topRightCube, handClampedCube;
+	//The following functions override the System cursor functions
 	[DllImport("user32.dll")]
 	public static extern bool SetCursorPos(int X, int Y);
 	[DllImport("user32.dll")]
 	public static extern bool GetCursorPos(out POINT pos);
 	// Update is called once per frame
+	//Handle on the Loading circle
 	public LoadingCircle loadingCircle;
-	float xPrevious=0f, yPrevious=0f;
+	//Minimum move threshold value
 	float moveThreshold = 0.001f;
-	int count = 0;
+	//This value decides whether we want to smoothly interpolate the value or jump straight to the new position
 	public bool smoothMovement = false;
+	//Called every frame
 	void Update(){
+		//Move the bounding box, centred above the hips
 		boundingBox.transform.position = hips.position + virtualCenter;
+		//Once a User is present
 		if (kinectManager.IsUserDetected ()) {
 						/*
 		 * We must find the position of the hand constrained to the bounding box
 		 * translate it into screen coordinates
 		 */
-						//print ("Bounding box size: "+boundingBox.size.x+","+boundingBox.size.y);
-						//print ("Bounding box position: " + boundingBox.transform.position);
-						//print ("Right hand position: " + rightHand.transform.position);
-
+			//Calculate the new positions of the extents
 						Vector2 bottomLeft = new Vector2 (boundingBox.transform.position.x - boundingBox.bounds.extents.x, boundingBox.transform.position.y - boundingBox.bounds.extents.y);
 						Vector2 topRight = new Vector2 (boundingBox.transform.position.x + boundingBox.bounds.extents.x, boundingBox.transform.position.y + boundingBox.bounds.extents.y);
-						Vector2 handClamped = new Vector2 (Mathf.Clamp (rightHand.transform.position.x, bottomLeft.x, topRight.x), Mathf.Clamp (rightHand.transform.position.y, bottomLeft.y, topRight.y));
-						
-			//print (rightHand);
+			// Clamp the position of the hand within these extents			
+			Vector2 handClamped = new Vector2 (Mathf.Clamp (rightHand.transform.position.x, bottomLeft.x, topRight.x), Mathf.Clamp (rightHand.transform.position.y, bottomLeft.y, topRight.y));
+						//Reposition the visual primitives
 						bottomLeftCube.transform.position = new Vector3 (bottomLeft.x, bottomLeft.y, boundingBox.transform.position.z);
 						topRightCube.transform.position = new Vector3 (topRight.x, topRight.y, boundingBox.transform.position.z);
 						handClampedCube.transform.position = new Vector3 (handClamped.x, handClamped.y, boundingBox.transform.position.z);
-
-		
-						// the hand has moved enough to update screen position (jitter control / smoothing)
-						//if (Mathf.Abs (handClamped.x - xPrevious) > moveThreshold || Mathf.Abs (handClamped.y - yPrevious) > moveThreshold) {
-
-						//handClamped += new Vector2 (boundingBox.bounds.extents.x, boundingBox.bounds.extents.y);
-						//print ("Before:"+handClamped.x + " " + handClamped.y);
+						//Calculate the position of the hand transform in terms of the extents
 						float widthFactor = (Mathf.Abs (handClamped.x - bottomLeft.x) / (topRight.x - bottomLeft.x));
 						float heightFactor = (Mathf.Abs (handClamped.y - bottomLeft.y) / (topRight.y - bottomLeft.y));
-//						print ("Factored :"+widthFactor + " " + heightFactor);
-
-						float xScaled = widthFactor * totalScreenWidth;// * (actualScreenWidth/totalScreenWidth);
-						float yScaled = (1 - heightFactor) * totalScreenHeight;// * (actualScreenHeight/totalScreenHeight);
-						//float xScaled = (rightHand.position.x - boundingBox.transform.position.x) / (boundingBox.size.x * 2) * totalScreenWidth;
-						//float yScaled = (rightHand.position.y - boundingBox.transform.position.y) / (boundingBox.size.y * 2)* totalScreenHeight;
-					//	print ("Mouse Position: "+xScaled + " " + yScaled);
+						//evaluate this position in terms of the screen space
+						float xScaled = widthFactor * totalScreenWidth;
+						float yScaled = (1 - heightFactor) * totalScreenHeight;
+						//rate of movement, used only for smooth movement
 						float rate = 2f;
+						//extract the Systems cursor position into a new struct object
 						POINT current = new POINT ();
 						GetCursorPos (out current);
-					//	print ("Current Position:"+current.X+","+current.Y);
+			//If smooth movement we lerp to the new position at the specified rate
 			if(smoothMovement){
 						xScaled = Mathf.Lerp(current.X,xScaled,Time.deltaTime*rate);
 						yScaled = Mathf.Lerp (current.Y, yScaled, Time.deltaTime * rate);
 			}
-			/*else{
-			xScaled = current.X;
-			yScaled = current.Y;
-			}*/
-			//MouseControl.MouseMove (new Vector3 (totalScreenWidth*0.5f,totalScreenHeight*0.5f,0), new GUIText ());
+			//Set the cursor position
 			SetCursorPos ((int)xScaled, (int)yScaled);
-			print (xScaled.ToString()+","+yScaled.ToString());
-						xPrevious = handClamped.x;
-						yPrevious = handClamped.y;
+			//debug
+//			print (xScaled.ToString()+","+yScaled.ToString());
+			//Tranform the image to the new position on screen (above the cursor)
 						Vector2 pos;
 						RectTransformUtility.ScreenPointToLocalPointInRectangle (myCanvas.transform as RectTransform, Input.mousePosition, myCanvas.worldCamera, out pos);
-						//transform.position = myCanvas.transform.TransformPoint(pos);
 						transform.position = myCanvas.transform.TransformPoint (pos);
+			//debug
 			if(debugText!=null){
 				debugText.text = "Relative: "+widthFactor+","+heightFactor+'\n'+"Current: "+(int)xScaled+","+(int)yScaled;
 			}
-						//UnityEngine.EventSystems.PointerEventData update = new UnityEngine.EventSystems.PointerEventData (eventSystem);
-						//update.position = handCursor.transform.position;
-						//transform.position = myCanvas.transform.TransformPoint (pos);
-						//		}
+			//debug
 						if (Input.GetKeyDown (KeyCode.Space))
 								MouseControl.MouseClick ();
 
@@ -161,45 +170,40 @@ public class CursorController : MonoBehaviour  {
 						}
 						if (Input.GetKeyDown (KeyCode.K))
 								CancelClicking ();
-
-
-//		Rect rt = GUILayoutUtility.g (guestButton, GUIStyle.none);
-//		if (rt.Contains(Event.current.mousePosition)){
-//			print (count);
-//			count++;
-//		}
-//			print ("moving cursor");
-						/*Vector2 cursorPosition
-		TrackHandMovement ();
-		Vector2 handPosition = new Vector2 (RightHandX, RightHandY);
-		print (handPosition);*/
-				} else {
-			//handCursor.transform.position = Vector3.zero;
+				}
+		else {
+			//User is not detected so do nothing
 			}
 	}
-	//bool guestButtonHighlighted;
+	//Onscreen debug text
 	public Text debugText;
+	//This function performs a mouse click if the loading circle has completed and the cursor is still within the bounds of a butoon
 	public void ClickIfStillHighlighted(){
-		//if (guestButtonHighlighted) {
+		//tell the loading circle it has completed
 			loadingCircle.Click();
+			//tween the image out now a click has been performed
 			LeanTween.scale (handCursor.rectTransform, Vector3.one * 1f, loadingCircle.totalTime);//.setEase(LeanTweenType.easeInSine);
-			//LeanTween.alpha(handCursor.rectTransform,0f,1f);
+		//perform mouse click
 			MouseControl.MouseClick ();
+		//Debug
 			print ("Mouse Click");
-		//}
 	}
-	public UnityEngine.EventSystems.EventSystem eventSystem;
+	//This function is called whenever the cursor enters the bounds of a button
 	public void BeginClicking(){
-		
+		//Reset the loading circle back to the beginning
 		loadingCircle.Reset ();
+		//Tell it to start tweening
 		loadingCircle.BeginLoading ();
-		//handCursor.transform.localScale = Vector3.one*0.75f;
+		//Tween the cursor scale down as if it were pressing the button
 		LeanTween.scale (handCursor.rectTransform, Vector3.one * 0.5f, loadingCircle.totalTime).setEase(LeanTweenType.easeInSine);
-		//LeanTween.alpha(handCursor.rectTransform,0f,loadingCircle.totalTime*0.5f);
+		//Invoke a method in the future to click the button if it is still highlighted (the total time the loading circle takes)
 		Invoke ("ClickIfStillHighlighted", loadingCircle.totalTime+(loadingCircle.totalTime/8f));
 	}
+	//This function is called automatically when the cursor exits a button
 	public void CancelClicking(){
+		//Cancel all future invocations (i.e. Click if still highlighted)
 		CancelInvoke ();
+		//Reset everything
 		handCursor.transform.localScale = Vector3.one;
 		LeanTween.cancel (handCursor.gameObject);
 		handCursor.color = Color.white;
