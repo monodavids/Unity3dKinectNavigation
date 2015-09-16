@@ -131,7 +131,7 @@ public class KinectManager : MonoBehaviour
 	private int usersClrSize;
 	
 	// Kinect body frame data
-	private KinectInterop.BodyFrameData bodyFrame;
+	public KinectInterop.BodyFrameData bodyFrame;
 	//private Int64 lastBodyFrameTime = 0;
 	
 	// List of all users
@@ -163,6 +163,7 @@ public class KinectManager : MonoBehaviour
 	// returns the single KinectManager instance
     public static KinectManager Instance
     {
+
         get
         {
             return instance;
@@ -178,6 +179,7 @@ public class KinectManager : MonoBehaviour
 	// checks if Kinect is initialized and ready to use. If not, there was an error during Kinect-sensor initialization
 	public bool IsInitialized()
 	{
+
 		return kinectInitialized;
 	}
 

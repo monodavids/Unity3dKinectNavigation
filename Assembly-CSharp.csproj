@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
      <Compile Include="Assets\CursorController.cs" />
+     <Compile Include="Assets\CursorControllerDirectKinect.cs" />
      <Compile Include="Assets\GestureListener.cs" />
      <Compile Include="Assets\GestureNavigationMenu.cs" />
      <Compile Include="Assets\HandControlDemoMenu.cs" />

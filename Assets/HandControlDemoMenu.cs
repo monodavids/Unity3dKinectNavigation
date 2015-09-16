@@ -7,6 +7,7 @@ public class HandControlDemoMenu : MonoBehaviour {
 	public bool buttonEnabled = false;
 	//The CursorController object
 	public CursorController cursor;
+	public CursorControllerDirectKinect cursorDirect;
 	//The function which is called when a button is clicked
 	public void ButtonClicked(){
 		print ("Button Clicked");
@@ -14,14 +15,21 @@ public class HandControlDemoMenu : MonoBehaviour {
 	//When the cursor enters a buttons bounds...
 	public void ButtonEnter(){
 		//If the button is enabled make the cursor start it's countdown click phase
-		if(buttonEnabled)cursor.BeginClicking ();
+		if (buttonEnabled) {
+			if(cursor!=null)cursor.BeginClicking ();
+			if(cursorDirect!=null)cursorDirect.BeginClicking ();
+
+		}
 		//debug
 		print ("Button Enter");
 	}
 	//When the cursor exits a buttons bounds...
 	public void ButtonExit(){
 		//If the button is enabled make the cursor exit it's countdown click phase
-		if(buttonEnabled)cursor.CancelClicking ();
+		if (buttonEnabled) {
+			if(cursor!=null)cursor.CancelClicking ();
+			if(cursorDirect!=null)cursorDirect.CancelClicking ();
+		}
 		//debug
 		print ("Button Exit");
 	}

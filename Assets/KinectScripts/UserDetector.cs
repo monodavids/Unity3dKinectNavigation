@@ -6,6 +6,7 @@ using System.Collections;using UnityEngine.UI;
 public class UserDetector : MonoBehaviour, KinectGestures.GestureListenerInterface {
 	//A handle on the CursorController Object
 	public CursorController cursor;
+	public CursorControllerDirectKinect cursorDirect;
 	//The three images which make up the user detection UI
 	public Image personDetectedIcon, noPersonDetectedIcon,emptyCircleIcon;
 	//Function called first automatically by Unity
@@ -54,6 +55,7 @@ public bool GestureCompleted(long userId, int userIndex, KinectGestures.Gestures
 	string sGestureText = gesture + " detected";
 		//Propogate the recognised gesture to the cursor controller
 		if(cursor!=null)cursor.WaveRecognised();
+		if(cursorDirect!=null)cursorDirect.WaveRecognised();
 	return true;
 }
 
